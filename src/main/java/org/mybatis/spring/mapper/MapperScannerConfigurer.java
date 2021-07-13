@@ -191,7 +191,7 @@ public class MapperScannerConfigurer
    * Specifies which {@code SqlSessionTemplate} to use in the case that there is more than one in the spring context.
    * Usually this is only needed when you have more than one datasource.
    * <p>
-   * 
+   *
    * @deprecated Use {@link #setSqlSessionTemplateBeanName(String)} instead
    *
    * @param sqlSessionTemplate
@@ -222,7 +222,7 @@ public class MapperScannerConfigurer
    * Specifies which {@code SqlSessionFactory} to use in the case that there is more than one in the spring context.
    * Usually this is only needed when you have more than one datasource.
    * <p>
-   * 
+   *
    * @deprecated Use {@link #setSqlSessionFactoryBeanName(String)} instead.
    *
    * @param sqlSessionFactory
@@ -253,7 +253,7 @@ public class MapperScannerConfigurer
    * Specifies a flag that whether execute a property placeholder processing or not.
    * <p>
    * The default is {@literal false}. This means that a property placeholder processing does not execute.
-   * 
+   *
    * @since 1.1.1
    *
    * @param processPropertyPlaceHolders
@@ -329,7 +329,10 @@ public class MapperScannerConfigurer
 
   /**
    * {@inheritDoc}
-   * 
+   *
+   * 注解形式的查找&解析原理
+   *
+   * MapperScannerConfigurer 是一个 BeanFactoryPostProcessor（BeanDefinitionRegistryPostProcessor），因此在实例化时，会调用 postProcessBeanDefinitionRegistry
    * @since 1.0.2
    */
   @Override
@@ -338,6 +341,8 @@ public class MapperScannerConfigurer
       processPropertyPlaceHolders();
     }
 
+    // 自定义的 scanner，但父类也是 Spring 提供的 Scanner：ClassPathBeanDefinitionScanner，都是用来扫描 BeanDefinition 的
+    // 内部会对扫描得到的 BeanDefinition 做加工
     ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
     scanner.setAddToConfig(this.addToConfig);
     scanner.setAnnotationClass(this.annotationClass);
@@ -353,6 +358,7 @@ public class MapperScannerConfigurer
       scanner.setLazyInitialization(Boolean.valueOf(lazyInitialization));
     }
     scanner.registerFilters();
+    // 最终会执行到 ClassPathMapperScanner.doScan 方法，里面有个性化处理
     scanner.scan(
         StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
   }

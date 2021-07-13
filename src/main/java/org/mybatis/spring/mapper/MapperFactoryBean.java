@@ -47,6 +47,18 @@ import org.springframework.beans.factory.FactoryBean;
  * <p>
  * Note that this factory can only inject <em>interfaces</em>, not concrete classes.
  *
+ *
+ *
+ * 整体流程：
+ * - MapperFactoryBean 是一个 FactoryBean 也是一个 InitializingBean（由 DaoSupport 继承而来）
+ *
+ * 启动流程：
+ * - FactoryBean.getObject()：先执行，创建对应的 Spring 对象，之后可以被 @Autowired 注入使用。
+ * - InitializingBean.afterPropertiesSet()：后执行，由 DaoSupport.afterPropertiesSet 调到 MapperFactoryBean.checkDaoConfig() 主要解析生成 MapperStatement 运行时使用，会从两个地方查找并解析
+ *    - XML配置：会查找此 XxxMapper Bean 对应的 XxxMapper.xml 文件，解析生成 MapperStatement
+ *    - 注解配置：会查找此 XxxMapper method 的各种注解解析生成 MapperStatement 下面详细介绍下整个流程：
+ *
+ *
  * @author Eduardo Macarron
  *
  * @see SqlSessionTemplate
@@ -67,6 +79,12 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
 
   /**
    * {@inheritDoc}
+   *
+   * InitializingBean.afterPropertiesSet()：后执行，主要解析生成 MapperStatement 运行时使用，会从两个地方查找并解析
+   *  - XML配置：会查找此 XxxMapper Bean 对应的 XxxMapper.xml 文件，解析生成 MapperStatement
+   *  - 注解配置：会查找此 XxxMapper method 的各种注解解析生成 MapperStatement 下面详细介绍下整个流程：
+   *
+   *  DaoSupport.afterPropertiesSet()，内部会调用到这个方法。
    */
   @Override
   protected void checkDaoConfig() {
@@ -77,6 +95,8 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
     Configuration configuration = getSqlSession().getConfiguration();
     if (this.addToConfig && !configuration.hasMapper(this.mapperInterface)) {
       try {
+        // 这里调转到 Mybatis 项目的代码中。
+        // 内部会用 MapperAnnotationBuilder 对这个 mapperInterface 进行解析，生成 MapperStatement
         configuration.addMapper(this.mapperInterface);
       } catch (Exception e) {
         logger.error("Error while adding the mapper '" + this.mapperInterface + "' to configuration.", e);
@@ -92,6 +112,11 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
    */
   @Override
   public T getObject() throws Exception {
+    // 先执行，通过 JDK 创建 Proxy 对象，内部持有 MapperProxy
+    // 返回一个 SpringBean，之后可以被 @Autowired 注入使用。
+    // 运行期间：
+    //    @Autowired 对象调用方法时，会执行 MapperProxy@invoke()，之后会根据 method 查找对应的 MapperMethod 执行，内部会拿到 MappedStatement 对象（内有SQL和 resultMap）
+    //    MappedStatement 拿到 Configuration，new 一个 StatementHandler，之后走 DB 中间件进行执行（dbcp、jdbc等等）
     return getSqlSession().getMapper(this.mapperInterface);
   }
 

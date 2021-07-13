@@ -45,7 +45,7 @@ import java.util.Set;
  *
  * @author Hunter Presnall
  * @author Eduardo Macarron
- * 
+ *
  * @see MapperFactoryBean
  * @since 1.2.0
  */
@@ -184,12 +184,22 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
       LOGGER.warn(() -> "No MyBatis mapper was found in '" + Arrays.toString(basePackages)
           + "' package. Please check your configuration.");
     } else {
+
+      // 修改 BeanClass 为 mapperFactoryBean，在对 Mapper 进行 getBean 时会做代理。
+      // （我们的 Mapper 是 Interface，没有具体的实现类，因此需要生成一个代理类，才能注入到 Spring 中，当然代理内部包含了跟 Mybatis 打通的逻辑。）
       processBeanDefinitions(beanDefinitions);
     }
 
     return beanDefinitions;
   }
 
+  /**
+   * 修改 BeanClass 为 MapperFactoryBean，在对 Mapper 进行 getBean 时会做代理。
+   *
+   * MapperFactoryBean 是一个 FactoryBean 也是一个 InitializingBean（由 DaoSupport 继承而来）
+   *
+   * @param beanDefinitions Mybatis 的 注解形式Bean，即 xxxMapper.java
+   */
   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
     GenericBeanDefinition definition;
     for (BeanDefinitionHolder holder : beanDefinitions) {
@@ -201,6 +211,9 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
       // the mapper interface is the original class of the bean
       // but, the actual class of the bean is MapperFactoryBean
       definition.getConstructorArgumentValues().addGenericArgumentValue(beanClassName); // issue #59
+
+      // 修改 BeanClass 为 MapperFactoryBean，在对 Mapper 进行 getBean 时会做代理。
+      // （我们的 Mapper 是 Interface，没有具体的实现类，因此需要生成一个代理类，才能注入到 Spring 中，当然代理内部包含了跟 Mybatis 打通的逻辑。）
       definition.setBeanClass(this.mapperFactoryBeanClass);
 
       definition.getPropertyValues().add("addToConfig", this.addToConfig);

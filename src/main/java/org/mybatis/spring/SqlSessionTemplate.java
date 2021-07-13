@@ -305,9 +305,16 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
   /**
    * {@inheritDoc}
+   *
+   * 先执行，通过 JDK 创建 Proxy 对象，内部持有 MapperProxy
+   * 返回一个 SpringBean，之后可以被 @Autowired 注入使用。
+   * 运行期间：
+   *    @Autowired 对象调用方法时，会执行 MapperProxy@invoke()，之后会根据 method 查找对应的 MapperMethod 执行，内部会拿到 MappedStatement 对象（内有SQL和 resultMap）
+   *    MappedStatement 拿到 Configuration，new 一个 StatementHandler，之后走 DB 中间件进行执行（dbcp、jdbc等等）
    */
   @Override
   public <T> T getMapper(Class<T> type) {
+    // 创建 Proxy，持有 MapperProxy
     return getConfiguration().getMapper(type, this);
   }
 
@@ -389,7 +396,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
   /**
    * Allow gently dispose bean:
-   * 
+   *
    * <pre>
    * {@code
    *
